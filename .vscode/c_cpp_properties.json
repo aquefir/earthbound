@@ -1,0 +1,39 @@
+{
+	"configurations": [ {
+			"name": "Linux",
+			"includePath": [
+				"${workspaceFolder}"
+			],
+			"defines": [
+				"__VSCODE_INTELLISENSE__"
+			],
+			"compilerPath": "/usr/bin/gcc",
+			"cStandard": "c89",
+			"cppStandard": "c++11",
+			"browse": {
+				"limitSymbolsToIncludedHeaders": true,
+				"path": [
+					"${workspaceFolder}"
+				]
+			}
+		}, {
+			"name": "Mac",
+			"includePath": [
+				"${workspaceFolder}"
+			],
+			"defines": [
+				"__VSCODE_INTELLISENSE__"
+			],
+			"compilerPath": "/usr/bin/clang",
+			"cStandard": "c89",
+			"cppStandard": "c++11",
+			"browse": {
+				"limitSymbolsToIncludedHeaders": true,
+				"path": [
+					"${workspaceFolder}"
+				]
+			}
+		}
+	],
+	"version": 4
+}

@@ -1,0 +1,14 @@
+caseinsens=0
+mscomments=0
+
+[file+]
+val=^[A-Za-z0-9_][A-Za-z0-9_\-\+]*(\.[A-Za-z0-9_\-\+]+)?$
+
+[file:sha2sum?]
+val=^[0-9A-Fa-f]{64}$
+
+[file:sha3sum?]
+val=^[0-9A-Fa-f]{64}$
+
+[file:source+]
+val=^(https?|scp|rsync)://([a-z0-9\-]+\.)+[a-z0-9\-]+/.*$
