@@ -28,7 +28,6 @@ COMPILING text eol=lf
 *.vapi linguist-vendored
 *.pl linguist-vendored
 *.py linguist-vendored
-*.sh linguist-vendored
 Makefile linguist-vendored
 doc/** linguist-vendored
 etc/** linguist-vendored
