@@ -6,7 +6,7 @@
 ##         Released under General Public License, version 2.0         ##
 ########################################################################
 
-.PHONY: all boot code test clean
+.PHONY: all boot code checksum test clean
 .SUFFIXES:
 
 ifeq ($(ver),)
@@ -26,6 +26,7 @@ CODE_INS := \
 
 BOOT_OUT := earthbound.sh
 CODE_OUT := earthbound-$(ver).c
+CHECKSUM := $(CODE_OUT).sha256sum
 
 MINI_IN     := etc/test.c
 MINI_OUT    := etc/test2.c
@@ -34,7 +35,7 @@ MINI_OUTSZ  := 413
 MINI_OUTSUM := \
 	f4b7131665c74c26ed4bc12eff7c3d8df108956ca42660d28363f82a121c1cb9
 
-all: boot code test
+all: boot code checksum test
 
 $(MINI_OUT): $(MINI_IN)
 	@cat $< | util/cminify.py > $@
@@ -50,9 +51,14 @@ $(CODE_OUT): $(CODE_INS)
 	@cat $^ > $@
 endif
 
+$(CHECKSUM): $(CODE_OUT)
+	@$(sha256) -b $< $(suffix) > $@
+
 boot: $(BOOT_OUT)
 
 code: $(CODE_OUT)
+
+checksum: $(CHECKSUM)
 
 test: $(MINI_OUT)
 	@test "`wc -c $(MINI_IN) | awk '{print $$1}'`" = $(MINI_INSZ)
@@ -64,3 +70,4 @@ clean:
 	@$(RM) $(BOOT_OUT)
 	@$(RM) $(CODE_OUT)
 	@$(RM) earthbound*.c
+	@$(RM) *.sha256sum
