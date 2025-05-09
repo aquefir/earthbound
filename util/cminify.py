@@ -161,8 +161,9 @@ def main(args: list[str]):
 	pct = t2_sz / t_sz * 100.0
 	pct_i = 100.0 - pct
 	write2(t2)
-	print2('Original: %i\nMinified: %i\n' % (t_sz, t2_sz))
-	print2('Saved: %.2f%% (%.2f%% of original)\n' % (pct_i, pct))
+	if compare:
+		print2('Original: %i\nMinified: %i\n' % (t_sz, t2_sz))
+		print2('Saved: %.2f%% (%.2f%% of original)\n' % (pct_i, pct))
 	return 0
 
 if __name__ == '__main__':
