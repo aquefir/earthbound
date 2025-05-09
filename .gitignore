@@ -7,6 +7,7 @@
 
 /earthbound*.c
 /earthbound.sh
+/etc/test2.c
 
 /*.log
 
