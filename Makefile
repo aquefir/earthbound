@@ -14,7 +14,7 @@ ver := $(shell git rev-parse --short HEAD)
 endif
 
 sha256 := $(shell command -v shasum 2>&1 >/dev/null && \
-	echo 'shasum -a 256' || echo 'sha256sum -q')
+	echo 'shasum -a 256' || echo 'sha256sum --quiet')
 suffix := $(shell command -v shasum 2>&1 >/dev/null && \
 	echo '| awk '"'"'{print $$1}'"'" || echo '')
 
