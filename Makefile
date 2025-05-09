@@ -13,6 +13,11 @@ ifeq ($(ver),)
 ver := $(shell git rev-parse --short HEAD)
 endif
 
+sha256 := $(shell command -v shasum 2>&1 >/dev/null && \
+	echo 'shasum -a 256' || echo 'sha256sum -q')
+suffix := $(shell command -v shasum 2>&1 >/dev/null && \
+	echo '| awk '"'"'{print $$1}'"'" || echo '')
+
 BOOT_INS := \
 	src/boot1.sh
 
@@ -52,7 +57,7 @@ code: $(CODE_OUT)
 test: $(MINI_OUT)
 	@test "`wc -c $(MINI_IN) | awk '{print $$1}'`" = $(MINI_INSZ)
 	@test "`wc -c $(MINI_OUT) | awk '{print $$1}'`" = $(MINI_OUTSZ)
-	@test "`sha256sum -b --quiet $(MINI_OUT)`" = $(MINI_OUTSUM)
+	@test "`$(sha256) -b $(MINI_OUT) $(suffix)`" = $(MINI_OUTSUM)
 
 clean:
 	@$(RM) $(MINI_OUT)
