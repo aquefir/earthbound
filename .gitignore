@@ -10,6 +10,7 @@
 /etc/test2.c
 
 /*.log
+/*.sha*sum
 
 *.prof*
 *.fmt
