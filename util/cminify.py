@@ -38,7 +38,7 @@ k_line_comment = re.compile(r'//.*$', re.MULTILINE)
 k_whitespace = re.compile(r'[ \t\v\f]+', re.DOTALL)
 k_leading = re.compile(r'^[ \t\v\f]+')
 k_trailing = re.compile(r'[ \t\v\f]+$')
-k_newlines = re.compile(r'\n+', re.DOTALL)
+k_newlines = re.compile(r'\n+')
 k_operators = f_operators([
 	'&&', '||', '++', '--', '+=', '-=', '*=', '/=', '%=', '&=',
 	'|=', '^=', '<<=', '>>=', '==', '!=', '<=', '>=', '+', '-', '*',
@@ -46,9 +46,10 @@ k_operators = f_operators([
 	'(', ')', '[', ']', '{', '}', '?', ':', ';', ','
 ])
 k_operators_sz = len(k_operators)
-k_preproc = re.compile(
-	r'^#([a-z]+)[ \t\v\f]+(["<]?[A-Za-z_][A-Za-z0-9_/\.]*[">]?)' +
-	r'([ \t\v\f]+(.+))?$',
+
+k_preproc = re.compile(r'^#((include)[ \t\v\f]+(["<][A-Za-z_0-9/\\\.]' +
+	r'+[">])|(define)[ \t\v\f]+([A-Za-z_][A-Za-z0-9_]*)(\([A-Za-z0-9_,' +
+	r' \t\v\f]+\))?([ \t\v\f]+(.+$))?|([a-z]+)([ \t\v\f]+(.+$))?)',
 	re.MULTILINE)
 
 def print2(s: str):
@@ -70,6 +71,7 @@ def replace_operator(s: str, key: str):
 
 def convert_line(lines, lines_sz, ret, i):
 	line = k_leading.sub('', k_trailing.sub('', lines[i]))
+	line = k_line_comment.sub('', line)
 	m = k_preproc.match(line)
 	pre_n = False
 	post_n = False
@@ -77,12 +79,22 @@ def convert_line(lines, lines_sz, ret, i):
 	if m:
 		post_n = True
 		gs = m.groups()
-		if gs[0].startswith('include'): is_incl = True
+		#print2(':<: ' + str(gs) + ' :>:\n')
 		if i > 0 and lines[i - 1] and not lines[i - 1].startswith('#'):
 			pre_n = True
-		line = '#' + gs[0] + ' ' + gs[1]
-		if gs[3] is not None:
-			line += ' ' + gs[3]
+		if gs[3] == 'define':
+			if gs[5] is not None:
+				line = '#define ' + gs[4] + k_whitespace.sub('', gs[5]) + \
+					k_whitespace.sub('', gs[7])
+			else:
+				line = '#define ' + gs[4] + ' ' + \
+					k_whitespace.sub('', gs[7])
+		elif gs[8] == 'if':
+			line = '#if ' + k_whitespace.sub('', gs[10])
+		elif gs[1] == 'include':
+			line = '#include ' + gs[2]
+			is_incl = True
+		else: line = '#' + gs[0]
 	j = 0
 	keys = list(k_operators.keys())
 	while j < k_operators_sz:
@@ -91,7 +103,6 @@ def convert_line(lines, lines_sz, ret, i):
 			continue
 		line = replace_operator(line, keys[j])
 		j += 1
-	line = k_line_comment.sub('', line)
 	ret += '\n' if pre_n else ''
 	ret += line
 	ret += '\n' if post_n else ''
@@ -129,8 +140,6 @@ def strip_whitespace(t: str):
 def convert(t: str):
 	# Replace Windows \r\n before replacing Classic Mac OS \r
 	t = t.replace('\r\n', '\n').replace('\r', '\n')
-	# Remove all empty lines
-	t = k_newlines.sub('\n', t)
 	# Remove block comments
 	t = k_block_comment.sub('', t)
 	# Remove excess whitespace
@@ -138,6 +147,8 @@ def convert(t: str):
 	# and non-string portions first, perform whitespace minimising
 	# on the non-string portions, and stitch it back together
 	t = strip_whitespace(t)
+	# Remove all empty lines
+	t = k_newlines.sub('\n', t)
 	lines = t.split('\n')
 	lines_sz = len(lines)
 	ret = ''
