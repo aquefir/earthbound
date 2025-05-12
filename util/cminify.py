@@ -76,10 +76,10 @@ def convert_line(lines, lines_sz, ret, i):
 	pre_n = False
 	post_n = False
 	is_incl = False
+	is_pdef = False
 	if m:
 		post_n = True
 		gs = m.groups()
-		#print2(':<: ' + str(gs) + ' :>:\n')
 		if i > 0 and lines[i - 1] and not lines[i - 1].startswith('#'):
 			pre_n = True
 		if gs[3] == 'define':
@@ -89,6 +89,8 @@ def convert_line(lines, lines_sz, ret, i):
 			else:
 				line = '#define ' + gs[4] + ' ' + \
 					k_whitespace.sub('', gs[7])
+				if gs[7].startswith('('):
+					is_pdef = True
 		elif gs[8] == 'if':
 			line = '#if ' + k_whitespace.sub('', gs[10])
 		elif gs[1] == 'include':
@@ -99,6 +101,9 @@ def convert_line(lines, lines_sz, ret, i):
 	keys = list(k_operators.keys())
 	while j < k_operators_sz:
 		if keys[j] == '<' and is_incl:
+			j += 1
+			continue
+		if keys[j] == '(' and is_pdef:
 			j += 1
 			continue
 		line = replace_operator(line, keys[j])
