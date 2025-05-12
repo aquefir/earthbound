@@ -1,0 +1,9 @@
+---
+If:
+   PathMatch: src/.+\.[ch]
+CompileFlags:
+   Add:
+   - '-xc'
+InlayHints:
+   Designators: No
+   ParameterNames: No
