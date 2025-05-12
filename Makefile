@@ -22,7 +22,7 @@ BOOT_INS := \
 	src/boot1.sh
 
 CODE_INS := \
-	src/eb1.c
+	src/eb.c
 
 BOOT_OUT := earthbound.sh
 CODE_OUT := earthbound-$(ver).c
