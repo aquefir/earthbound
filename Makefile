@@ -54,7 +54,9 @@ endif
 $(CHECKSUM): $(CODE_OUT)
 	@$(sha256) -b $< $(suffix) > $@
 
-boot: $(BOOT_OUT)
+boot: $(BOOT_OUT) $(CHECKSUM)
+	@sed -i '' 's/@CHECKSUM@/'`cat $(word 2,$^)`'/g' $<
+	@sed -i '' 's/@VERSION@/$(ver)/g' $<
 
 code: $(CODE_OUT)
 

@@ -8,8 +8,8 @@
 ## <https://www.gnu.org/licenses/gpl-2.0.html>
 
 # SHA2-256 digest of earthbound.c
-sum=bfdc5727e55a588eb8fa8c934f728fe4216f3f22d5e9a57d7bde549bbcfa2dc1;
-ver=0.0.0;
+sum=@CHECKSUM@;
+ver=@VERSION@;
 
 #####
 
