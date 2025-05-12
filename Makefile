@@ -55,8 +55,10 @@ $(CHECKSUM): $(CODE_OUT)
 	@$(sha256) -b $< $(suffix) > $@
 
 boot: $(BOOT_OUT) $(CHECKSUM)
-	@sed -i '' 's/@CHECKSUM@/'`cat $(word 2,$^)`'/g' $<
-	@sed -i '' 's/@VERSION@/$(ver)/g' $<
+	@sed 's/@CHECKSUM@/'`cat $(word 2,$^)`'/g' $< > $<.new
+	@mv -- $<.new $<
+	@sed 's/@VERSION@/$(ver)/g' $< > $<.new
+	@mv -- $<.new $<
 
 code: $(CODE_OUT)
 
