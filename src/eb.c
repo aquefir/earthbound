@@ -1,3 +1,5 @@
+/* for memset */
+#include <string.h>
 
 /* BEGIN SHA-3 IMPLEMENTATION */
 
@@ -9,7 +11,7 @@
 #define ROTL64(x, y) (((x) << (y)) | ( (x) >> (64 - (y))))
 #endif
 
-typedef struct
+struct sha3
 {
 	/* State: */
 	union
@@ -21,7 +23,7 @@ typedef struct
 	} st;
 	/* these don't overflow */
 	int pt, rsiz, mdlen;
-} sha3_ctx_t;
+};
 
 /* Compression function */
 void sha3_keccakf( __UINT64_TYPE__ st[25] );
@@ -29,22 +31,31 @@ void sha3_keccakf( __UINT64_TYPE__ st[25] );
 /* OpenSSL-like interface */
 
 /* mdlen = hash output in bytes */
-int sha3_init( sha3_ctx_t * c, int mdlen );
-int sha3_update( sha3_ctx_t * c, const void * data, __SIZE_TYPE__ len );
+int sha3_init( struct sha3 * c, int mdlen );
+
+int sha3_update(
+	struct sha3 * c,
+	const void * data,
+	__SIZE_TYPE__ len
+);
 /* digest goes to md */
-int sha3_final( void * md, sha3_ctx_t * c );
+int sha3_final( void * md, struct sha3 * c );
 
 /* compute a sha3 hash (md) of given byte length from "in" */
 void * sha3(
-	const void * in, __SIZE_TYPE__ inlen, void * md, int mdlen );
+	const void * in,
+	__SIZE_TYPE__ inlen,
+	void * md,
+	int mdlen
+);
 
 /* SHAKE128 and SHAKE256 extensible-output functions */
-#define shake128_init( c ) sha3_init( c, 16 )
-#define shake256_init( c ) sha3_init( c, 32 )
+#define shake128_init(c) sha3_init(c, 16)
+#define shake256_init(c) sha3_init(c, 32)
 #define shake_update sha3_update
 
-void shake_xof( sha3_ctx_t * c );
-void shake_out( sha3_ctx_t * c, void * out, __SIZE_TYPE__ len );
+void shake_xof( struct sha3 * c );
+void shake_out( struct sha3 * c, void * out, __SIZE_TYPE__ len );
 
 /* constants */
 static const __UINT64_TYPE__ keccakf_rndc[24] = {
@@ -86,9 +97,10 @@ void sha3_keccakf( __UINT64_TYPE__ st[25] )
 
 	/* endianess conversion. this is redundant on little-endian
 	 * targets */
-	for( i = 0; i < 25; i++ )
+	for(i = 0; i < 25; ++i)
 	{
-		v     = (__UINT8_TYPE__ *)&st[i];
+		v = (__UINT8_TYPE__ *)&st[i];
+
 		st[i] = ( (__UINT64_TYPE__)v[0] ) |
 			( ( (__UINT64_TYPE__)v[1] ) << 8 ) |
 			( ( (__UINT64_TYPE__)v[2] ) << 16 ) |
@@ -101,53 +113,64 @@ void sha3_keccakf( __UINT64_TYPE__ st[25] )
 #endif
 
 	/* actual iteration */
-	for( r = 0; r < KECCAKF_ROUNDS; r++ )
+	for(r = 0; r < KECCAKF_ROUNDS; ++r)
 	{
-
 		/* Theta */
-		for( i = 0; i < 5; i++ )
+		for(i = 0; i < 5; ++i)
+		{
 			bc[i] = st[i] ^ st[i + 5] ^ st[i + 10] ^
 				st[i + 15] ^ st[i + 20];
+		}
 
-		for( i = 0; i < 5; i++ )
+		for(i = 0; i < 5; ++i)
 		{
 			t = bc[( i + 4 ) % 5] ^
 				ROTL64( bc[( i + 1 ) % 5], 1 );
-			for( j = 0; j < 25; j += 5 )
+			for(j = 0; j < 25; j += 5)
+			{
 				st[j + i] ^= t;
+			}
 		}
 
 		/* Rho Pi */
 		t = st[1];
-		for( i = 0; i < 24; i++ )
+		for(i = 0; i < 24; ++i)
 		{
-			j     = keccakf_piln[i];
+			j = keccakf_piln[i];
+
 			bc[0] = st[j];
 			st[j] = ROTL64( t, keccakf_rotc[i] );
-			t     = bc[0];
+
+			t = bc[0];
 		}
 
-		/*  Chi */
-		for( j = 0; j < 25; j += 5 )
+		/* Chi */
+		for(j = 0; j < 25; j += 5)
 		{
-			for( i = 0; i < 5; i++ )
+			for(i = 0; i < 5; ++i)
+			{
 				bc[i] = st[j + i];
-			for( i = 0; i < 5; i++ )
+			}
+
+			for(i = 0; i < 5; ++i)
+			{
 				st[j + i] ^= ( ~bc[( i + 1 ) % 5] ) &
 					bc[( i + 2 ) % 5];
+			}
 		}
 
-		/*  Iota */
+		/* Iota */
 		st[0] ^= keccakf_rndc[r];
 	}
 
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 	/* endianess conversion. this is redundant on little-endian
 	 * targets */
-	for( i = 0; i < 25; i++ )
+	for(i = 0; i < 25; ++i)
 	{
-		v    = (__UINT8_TYPE__ *)&st[i];
-		t    = st[i];
+		v = (__UINT8_TYPE__ *)&st[i];
+		t = st[i];
+
 		v[0] = t & 0xFF;
 		v[1] = ( t >> 8 ) & 0xFF;
 		v[2] = ( t >> 16 ) & 0xFF;
@@ -162,12 +185,15 @@ void sha3_keccakf( __UINT64_TYPE__ st[25] )
 
 /* Initialize the context for SHA3 */
 
-int sha3_init( sha3_ctx_t * c, int mdlen )
+int sha3_init( struct sha3 * c, int mdlen )
 {
 	int i;
 
-	for( i = 0; i < 25; i++ )
+	for(i = 0; i < 25; ++i)
+	{
 		c->st.q[i] = 0;
+	}
+
 	c->mdlen = mdlen;
 	c->rsiz  = 200 - 2 * mdlen;
 	c->pt    = 0;
@@ -177,21 +203,22 @@ int sha3_init( sha3_ctx_t * c, int mdlen )
 
 /* update state with more data */
 
-int sha3_update( sha3_ctx_t * c, const void * data, __SIZE_TYPE__ len )
+int sha3_update( struct sha3 * c, const void * data, __SIZE_TYPE__ len )
 {
 	__SIZE_TYPE__ i;
-	int j;
+	int j = c->pt;
 
-	j = c->pt;
-	for( i = 0; i < len; i++ )
+	for(i = 0; i < len; ++i)
 	{
 		c->st.b[j++] ^= ( (const __UINT8_TYPE__ *)data )[i];
-		if( j >= c->rsiz )
+
+		if(j >= c->rsiz)
 		{
 			sha3_keccakf( c->st.q );
 			j = 0;
 		}
 	}
+
 	c->pt = j;
 
 	return 1;
@@ -199,15 +226,16 @@ int sha3_update( sha3_ctx_t * c, const void * data, __SIZE_TYPE__ len )
 
 /* finalize and output a hash */
 
-int sha3_final( void * md, sha3_ctx_t * c )
+int sha3_final( void * md, struct sha3 * c )
 {
 	int i;
 
 	c->st.b[c->pt] ^= 0x06;
 	c->st.b[c->rsiz - 1] ^= 0x80;
+
 	sha3_keccakf( c->st.q );
 
-	for( i = 0; i < c->mdlen; i++ )
+	for(i = 0; i < c->mdlen; ++i)
 	{
 		( (__UINT8_TYPE__ *)md )[i] = c->st.b[i];
 	}
@@ -218,9 +246,12 @@ int sha3_final( void * md, sha3_ctx_t * c )
 /* compute a SHA-3 hash (md) of given byte length from "in" */
 
 void * sha3(
-	const void * in, __SIZE_TYPE__ inlen, void * md, int mdlen )
+const void * in,
+__SIZE_TYPE__ inlen,
+void * md,
+int mdlen )
 {
-	sha3_ctx_t sha3;
+	struct sha3 sha3;
 
 	sha3_init( &sha3, mdlen );
 	sha3_update( &sha3, in, inlen );
@@ -231,29 +262,32 @@ void * sha3(
 
 /* SHAKE128 and SHAKE256 extensible-output functionality */
 
-void shake_xof( sha3_ctx_t * c )
+void shake_xof( struct sha3 * c )
 {
 	c->st.b[c->pt] ^= 0x1F;
 	c->st.b[c->rsiz - 1] ^= 0x80;
+
 	sha3_keccakf( c->st.q );
+
 	c->pt = 0;
 }
 
-void shake_out( sha3_ctx_t * c, void * out, __SIZE_TYPE__ len )
+void shake_out( struct sha3 * c, void * out, __SIZE_TYPE__ len )
 {
 	__SIZE_TYPE__ i;
-	int j;
+	int j = c->pt;
 
-	j = c->pt;
-	for( i = 0; i < len; i++ )
+	for(i = 0; i < len; ++i)
 	{
-		if( j >= c->rsiz )
+		if(j >= c->rsiz)
 		{
 			sha3_keccakf( c->st.q );
 			j = 0;
 		}
+
 		( (__UINT8_TYPE__ *)out )[i] = c->st.b[j++];
 	}
+
 	c->pt = j;
 }
 
