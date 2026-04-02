@@ -2,7 +2,8 @@
 ########################################################################
 ##                             Earthbound                             ##
 ##                                                                    ##
-##             Copyright (C) 2025 Aquefir Consulting LLC.             ##
+##             Written by  Alexander Nicholi <//nich.fi/>             ##
+##   Copyright (C) 2025-2026 Aquefir Consulting LLC <//aquefir.co/>   ##
 ##         Released under General Public License, version 2.0         ##
 ########################################################################
 

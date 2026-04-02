@@ -1,3 +1,11 @@
+/**********************************************************************\
+ *                             Earthbound                             *
+ *                                                                    *
+ *             Written by  Alexander Nicholi <//nich.fi/>             *
+ *   Copyright (C) 2025-2026 Aquefir Consulting LLC <//aquefir.co/>   *
+ *         Released under General Public License, version 2.0         *
+\**********************************************************************/
+
 /* for memset */
 #include <string.h>
 #include <ctype.h>
