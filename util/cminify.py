@@ -34,6 +34,7 @@ nonzero on failure.
 
 '''
 
+k_string_join = re.compile(r'"[ \t\v\f\n\r\\]*"')
 k_block_comment = re.compile(r'/\*.*?\*/', re.DOTALL)
 k_line_comment = re.compile(r'//.*$', re.MULTILINE)
 k_whitespace = re.compile(r'[ \t\v\f]+', re.DOTALL)
@@ -49,9 +50,9 @@ k_operators = f_operators([
 k_operators_sz = len(k_operators)
 
 k_preproc = re.compile(r'^#((include)[ \t\v\f]+(["<][A-Za-z_0-9/\\\.]' +
-	r'+[">])|(define)[ \t\v\f]+([A-Za-z_][A-Za-z0-9_]*)(\([A-Za-z0-9_,' +
-	r' \t\v\f]+\))?([ \t\v\f]+(.+$))?|([a-z]+)([ \t\v\f]+(.+$))?)',
-	re.MULTILINE)
+	r'+[">])|(define)[ \t\v\f]+([A-Za-z_][A-Za-z0-9_]*)(\([A-Za-z' +
+	r'0-9_, \t\v\f]+\))?([ \t\v\f]+(.+$))?|([a-z]+)([ \t\v\f]+(.+' +
+	r'$))?)', re.MULTILINE)
 
 def print2(s: str) -> str:
 	from sys import stderr
@@ -81,11 +82,13 @@ def convert_line(lines, lines_sz, ret, i) -> str:
 	if m:
 		post_n = True
 		gs = m.groups()
-		if i > 0 and lines[i - 1] and not lines[i - 1].startswith('#'):
+		if i > 0 and lines[i - 1] and not \
+		lines[i - 1].startswith('#'):
 			pre_n = True
 		if gs[3] == 'define':
 			if gs[5] is not None:
-				line = '#define ' + gs[4] + k_whitespace.sub('', gs[5]) + \
+				line = '#define ' + gs[4] + \
+					k_whitespace.sub('', gs[5]) + \
 					k_whitespace.sub('', gs[7])
 			else:
 				line = '#define ' + gs[4] + ' ' + \
@@ -119,6 +122,7 @@ def strip_whitespace(t: str) -> str:
 	# this is a hack to make sure a shallow backtrack
 	# never gives a false positive
 	t = t.replace('\\\\', '\a')
+	t = k_string_join.sub('', t)
 	t_sz = len(t)
 	i = 0
 	j = 0
@@ -180,7 +184,8 @@ def main(args: list[str]) -> int:
 	write2(t2)
 	if compare:
 		print2('Original: %i\nMinified: %i\n' % (t_sz, t2_sz))
-		print2('Saved: %.2f%% (%.2f%% of original)\n' % (pct_i, pct))
+		print2('Saved: %.2f%% (%.2f%% of original)\n' %
+			(pct_i, pct))
 	return 0
 
 if __name__ == '__main__':
