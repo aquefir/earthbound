@@ -215,7 +215,7 @@ static enum slre_err _slre_match(
 	slre_uint r;
 	const slre_ptri regex_sz = strlen( regex );
 
-	if(groups && groups_sz >= 1)
+	if(groups_sz >= 1)
 	{
 		groups[0].open = 0;
 		groups[0].close = string_sz;
