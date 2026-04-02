@@ -11,7 +11,7 @@
 
 #define CHK(_x,_r) do{if((_x)){}else{return (_r);}}while(0)
 
-typedef __UINT16_TYPE__ slre_u16;
+typedef __UINT16_TYPE__ slre_uint;
 typedef __UINTPTR_TYPE__ slre_ptri;
 
 enum slre_err
@@ -49,16 +49,16 @@ enum slre_flags
 struct slre_group
 {
 	/* relative offsets from beginning of string */
-	slre_u16 open;
+	slre_uint open;
 	/* relative offset from `.open` */
-	slre_u16 close;
+	slre_uint close;
 	/* element count of `.branches` */
-	slre_u16 branch_ct;
+	slre_uint branch_ct;
 	/* array of offsets from `.open` pointing to `'|'` metachars */
-	slre_u16 * branches;
+	slre_uint * branches;
 };
 
-static slre_u16 _op_len( const char * regex,
+static slre_uint _op_len( const char * regex,
 	slre_ptri i, slre_ptri regex_sz )
 {
 	if(regex[i] == '\\')
@@ -72,7 +72,7 @@ static slre_u16 _op_len( const char * regex,
 	}
 }
 
-static slre_u16 _set_len( const char * regex,
+static slre_uint _set_len( const char * regex,
 	slre_ptri i, slre_ptri regex_sz )
 {
 	slre_ptri len = 0;
@@ -93,7 +93,7 @@ static slre_ptri _get_op_len( const char * regex,
 		: _op_len( regex, i, regex_sz );
 }
 
-static slre_u16 _chk_regex_hex( const char * regex,
+static slre_uint _chk_regex_hex( const char * regex,
 	slre_ptri i, slre_ptri regex_sz )
 {
 	if( regex[i + 1] != 'x')
@@ -110,7 +110,7 @@ static slre_u16 _chk_regex_hex( const char * regex,
 	return 0;
 }
 
-static slre_u16 _chk_regex_meta( char c )
+static slre_uint _chk_regex_meta( char c )
 {
 	switch(c)
 	{
@@ -142,24 +142,77 @@ static slre_u16 _chk_regex_meta( char c )
 	}
 }
 
+static slre_uint _formgroup(
+	const char * regex,
+	slre_uint opgroup_idxs[SLRE_GROUPS_MAX],
+	slre_uint opgroup_sz,
+	slre_ptri idx,
+	struct slre_group (* groups)[SLRE_GROUPS_MAX],
+	slre_ptri * groups_sz
+)
+{
+	slre_ptri i;
+	slre_uint depth = 0;
+	slre_uint branch_ct = 0;
+
+	if(idx >= opgroup_sz)
+	{
+		return 0;
+	}
+
+	for(i = 0; regex[i + opgroup_idxs[idx] + 1] != '\0'; ++i)
+	{
+		slre_uint quit = 0;
+
+		switch(regex[i + opgroup_idxs[idx] + 1])
+		{
+		case '(':
+			depth += 1;
+			break;
+		case ')':
+			depth -= depth > 0 ? 1 : 0;
+			quit = depth == 0 ? 1 : 0;
+			break;
+		case '|':
+			/* this does nothing if depth > 0 since it
+			 * would be an inner group's branch */
+			(*groups)[idx].branches[branch_ct] = depth == 0
+				? i
+				: (*groups)[idx].branches[branch_ct];
+			branch_ct += depth == 0 ? 1 : 0;
+		default:
+			break;
+		}
+
+		if(quit)
+		{
+			break;
+		}
+	}
+
+	(*groups)[idx].open = opgroup_idxs[idx] + 1;
+	(*groups)[idx].close = (*groups)[idx].open - i;
+
+	return 1;
+}
+
 static enum slre_err _slre_match(
 	const char * regex,
 	const char * string,
 	slre_ptri string_sz,
-	struct slre_group * groups,
-	slre_ptri groups_sz,
 	enum slre_flags flags
 )
 {
-	slre_u16 branch_idxs[SLRE_BRANCHES_MAX];
-	slre_u16 branch_sz = 0;
-	slre_u16 group_idxs[SLRE_GROUPS_MAX];
-	slre_u16 group_depths[SLRE_GROUPS_MAX];
-	slre_u16 group_sz = 0;
-	slre_u16 step = 1;
-	slre_u16 depth = 0;
+	slre_uint branch_idxs[SLRE_BRANCHES_MAX];
+	slre_uint opgroup_idxs[SLRE_GROUPS_MAX];
+	struct slre_group groups[SLRE_GROUPS_MAX];
+	slre_ptri groups_sz = 0;
+	slre_uint branch_sz = 0;
+	slre_uint opgroup_sz = 0;
+	slre_uint clgroup_sz = 0;
+	slre_uint step = 1;
 	slre_ptri i;
-	slre_u16 r;
+	slre_uint r;
 	const slre_ptri regex_sz = strlen( regex );
 
 	if(groups && groups_sz >= 1)
@@ -190,19 +243,35 @@ static enum slre_err _slre_match(
 			CHK( r == 0, SLRE_ERR_BADMETACHAR );
 			break;
 		case '(':
-			CHK( group_sz + 1 < SLRE_GROUPS_MAX,
+			CHK( opgroup_sz + 1 < SLRE_GROUPS_MAX,
 				SLRE_ERR_TOOMANYGROUPS );
 			CHK( i + 1 < regex_sz, SLRE_ERR_BADPARENS );
-			/* increment depth before anything */
-			depth += 1;
-			group_idxs[group_sz] = i + 1;
-			group_depths[group_sz] = depth;
-			group_sz += 1;
+			opgroup_idxs[opgroup_sz] = i;
+			opgroup_sz += 1;
 			break;
 		case ')':
+			CHK( clgroup_sz + 1 < SLRE_GROUPS_MAX,
+				SLRE_ERR_TOOMANYGROUPS );
+			clgroup_sz += 1;
 		default:
 			break;
 		}
+	}
+
+	CHK( opgroup_sz == clgroup_sz, SLRE_ERR_BADPARENS );
+
+	{
+		struct slre_group groups[SLRE_GROUPS_MAX];
+		slre_ptri groups_ct = 0;
+
+		i = 0;
+
+		do
+		{
+			r = _formgroup( regex, opgroup_idxs, opgroup_sz,
+				i, &groups, &groups_sz );
+		}
+		while(r != 0);
 	}
 
 	return SLRE_ERR_SUCCESS;
@@ -224,6 +293,6 @@ enum slre_err slre_match(
 		return SLRE_ERR_BADCALL;
 	}
 
-	return _slre_match( regex, string, (slre_ptri)string_sz, groups,
-		(slre_ptri)groups_sz, flags );
+	return _slre_match( regex, string, (slre_ptri)string_sz,
+		flags );
 }
