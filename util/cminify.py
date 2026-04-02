@@ -53,24 +53,24 @@ k_preproc = re.compile(r'^#((include)[ \t\v\f]+(["<][A-Za-z_0-9/\\\.]' +
 	r' \t\v\f]+\))?([ \t\v\f]+(.+$))?|([a-z]+)([ \t\v\f]+(.+$))?)',
 	re.MULTILINE)
 
-def print2(s: str):
+def print2(s: str) -> str:
 	from sys import stderr
 	stderr.buffer.write(s.encode('utf-8'))
 	stderr.buffer.flush()
 
-def read2(n: int | None = None):
+def read2(n: int | None = None) -> str:
 	from sys import stdin
 	b = stdin.buffer.read() if n is None else stdin.buffer.read(n)
 	return b.decode('utf-8')
 
-def write2(s: str):
+def write2(s: str) -> None:
 	from sys import stdout
 	stdout.buffer.write(s.encode('utf-8'))
 
-def replace_operator(s: str, key: str):
+def replace_operator(s: str, key: str) -> str:
 	return k_operators[key].sub(key, s)
 
-def convert_line(lines, lines_sz, ret, i):
+def convert_line(lines, lines_sz, ret, i) -> str:
 	line = k_leading.sub('', k_trailing.sub('', lines[i]))
 	line = k_line_comment.sub('', line)
 	m = k_preproc.match(line)
@@ -114,7 +114,7 @@ def convert_line(lines, lines_sz, ret, i):
 	ret += '\n' if post_n else ''
 	return ret
 
-def strip_whitespace(t: str):
+def strip_whitespace(t: str) -> str:
 	pieces: list[str] = ['']
 	# this is a hack to make sure a shallow backtrack
 	# never gives a false positive
@@ -143,7 +143,7 @@ def strip_whitespace(t: str):
 		i += 1
 	return ret
 
-def convert(t: str):
+def convert(t: str) -> str:
 	# Replace Windows \r\n before replacing Classic Mac OS \r
 	t = t.replace('\r\n', '\n').replace('\r', '\n')
 	# Remove block comments
@@ -164,7 +164,7 @@ def convert(t: str):
 		i += 1
 	return ret + '\n'
 
-def main(args: list[str]):
+def main(args: list[str]) -> int:
 	if '-h' in args or '--help' in args:
 		print2(k_help_text)
 		return 0
