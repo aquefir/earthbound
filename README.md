@@ -53,6 +53,8 @@ long as one is available, it will work. Finally, while it tries to use
 `cc` from the `$PATH`, it will prefer the value of `$CC` if it is not
 empty. It will also pass `$CFLAGS` as-is to the compiler invocation.
 
+See also: the [compilation guide](COMPILING.md)
+
 ## Architecture
 
 Earthbound only concerns itself with what we will call **files of
