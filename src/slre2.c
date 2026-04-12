@@ -10,8 +10,12 @@
 #include <string.h>
 
 #define CHK(_x,_r) do{if((_x)){}else{return (_r);}}while(0)
+#define CHKC(_x) do{if((_x)){}else{continue;}}while(0)
 
+typedef unsigned slre_bool;
 typedef __UINT16_TYPE__ slre_uint;
+typedef unsigned slre_ubf;
+typedef __INTPTR_TYPE__ slre_offs;
 typedef __UINTPTR_TYPE__ slre_ptri;
 
 enum slre_err
@@ -46,71 +50,69 @@ enum slre_flags
 	SLRE_IGNORE_CASE = 1
 };
 
+struct slre_set
+{
+	slre_ubf ascii_0 : 16;
+	slre_ubf ascii_1 : 16;
+	slre_ubf ascii_2 : 16;
+	slre_ubf ascii_3 : 16;
+	slre_ubf ascii_4 : 16;
+	slre_ubf ascii_5 : 16;
+	slre_ubf ascii_6 : 16;
+	slre_ubf ascii_7 : 16;
+	slre_ubf ascii_8 : 16;
+	slre_ubf ascii_9 : 16;
+	slre_ubf ascii_a : 16;
+	slre_ubf ascii_b : 16;
+	slre_ubf ascii_c : 16;
+	slre_ubf ascii_d : 16;
+	slre_ubf ascii_e : 16;
+	slre_ubf ascii_f : 16;
+	slre_ubf inverted : 1;
+};
+
+struct slre_group;
+
 struct slre_group
 {
 	/* relative offsets from beginning of string */
-	slre_uint open;
+	slre_offs open;
 	/* relative offset from `.open` */
-	slre_uint close;
+	slre_offs len;
 	/* element count of `.branches` */
 	slre_uint branch_ct;
 	/* array of offsets from `.open` pointing to `'|'` metachars */
 	slre_uint * branches;
+	/* number of child groups */
+	slre_ptri children_sz;
+	/* ordered list of child groups */
+	struct slre_group * children;
 };
 
-static slre_uint _op_len( const char * regex,
-	slre_ptri i, slre_ptri regex_sz )
+static slre_bool _chk_regex_octal( const char c[3], slre_ptri idx,
+slre_ptri sz)
 {
-	if(regex[i] == '\\')
+	slre_ptri i;
+
+	if(idx + 2 >= sz
+	|| c[0] != '0' && c[0] != '1' && c[0] != '2' && c[0] != '3')
 	{
-		return regex[(i + 1 < regex_sz) ? i + 1 : i] == 'x'
-			? 4 : 2;
-	}
-	else
-	{
-		return 1;
-	}
-}
-
-static slre_uint _set_len( const char * regex,
-	slre_ptri i, slre_ptri regex_sz )
-{
-	slre_ptri len = 0;
-
-	while( len + i < regex_sz && regex[len + i] != ']' )
-	{
-		len += _op_len( regex, i, regex_sz );
-	}
-
-	return len + i <= regex_sz ? len + i + 1 : -1;
-}
-
-static slre_ptri _get_op_len( const char * regex,
-	slre_ptri i, slre_ptri regex_sz )
-{
-	return regex[i] == '['
-		? _set_len( regex, i + 1, regex_sz - 1 ) + 1
-		: _op_len( regex, i, regex_sz );
-}
-
-static slre_uint _chk_regex_hex( const char * regex,
-	slre_ptri i, slre_ptri regex_sz )
-{
-	if( regex[i + 1] != 'x')
-	{
+		/* might still fail but it's not our business */
 		return 0;
 	}
-	else if(i + 3 >= regex_sz
-	|| !isxdigit( regex[i + 2] )
-	|| !isxdigit( regex[i + 3] ))
+
+	for(i = 1; i <= 2; ++i)
 	{
-		return 1;
+		if(c[i] < '0' || c[i] > '7')
+		{
+			return 1;
+		}
 	}
 
 	return 0;
 }
 
-static slre_uint _chk_regex_meta( char c )
+static slre_bool _chk_regex_meta( char c )
 {
 	switch(c)
 	{
@@ -126,9 +128,14 @@ static slre_uint _chk_regex_meta( char c )
 	case '?':
 	case '|':
 	case '\\':
+	/* shorthands for character sets */
 	case 'S':
 	case 's':
+	case 'D':
 	case 'd':
+	case 'W':
+	case 'w':
+	/* ASCII literals */
 	case 'a':
 	case 'b':
 	case 'f':
@@ -142,58 +149,23 @@ static slre_uint _chk_regex_meta( char c )
 	}
 }
 
-static slre_uint _formgroup(
+static slre_bool _formgroups(
 	const char * regex,
-	slre_uint opgroup_idxs[SLRE_GROUPS_MAX],
-	slre_uint opgroup_sz,
-	slre_ptri idx,
+	slre_ptri regex_sz,
 	struct slre_group (* groups)[SLRE_GROUPS_MAX],
-	slre_ptri * groups_sz
+	slre_ptri groups_sz
 )
 {
 	slre_ptri i;
-	slre_uint depth = 0;
-	slre_uint branch_ct = 0;
+	slre_uint wip_sizes[SLRE_GROUPS_MAX];
 
-	if(idx >= opgroup_sz)
+	memset( &wip_sizes, 0, SLRE_GROUPS_MAX );
+
+	for(i = 0; i < regex_sz; ++i)
 	{
-		return 0;
 	}
 
-	for(i = 0; regex[i + opgroup_idxs[idx] + 1] != '\0'; ++i)
-	{
-		slre_uint quit = 0;
-
-		switch(regex[i + opgroup_idxs[idx] + 1])
-		{
-		case '(':
-			depth += 1;
-			break;
-		case ')':
-			depth -= depth > 0 ? 1 : 0;
-			quit = depth == 0 ? 1 : 0;
-			break;
-		case '|':
-			/* this does nothing if depth > 0 since it
-			 * would be an inner group's branch */
-			(*groups)[idx].branches[branch_ct] = depth == 0
-				? i
-				: (*groups)[idx].branches[branch_ct];
-			branch_ct += depth == 0 ? 1 : 0;
-		default:
-			break;
-		}
-
-		if(quit)
-		{
-			break;
-		}
-	}
-
-	(*groups)[idx].open = opgroup_idxs[idx] + 1;
-	(*groups)[idx].close = (*groups)[idx].open - i;
-
-	return 1;
+	return 0;
 }
 
 static enum slre_err _slre_match(
@@ -204,29 +176,19 @@ static enum slre_err _slre_match(
 )
 {
 	slre_uint branch_idxs[SLRE_BRANCHES_MAX];
-	slre_uint opgroup_idxs[SLRE_GROUPS_MAX];
 	struct slre_group groups[SLRE_GROUPS_MAX];
 	slre_ptri groups_sz = 0;
 	slre_uint branch_sz = 0;
 	slre_uint opgroup_sz = 0;
 	slre_uint clgroup_sz = 0;
-	slre_uint step = 1;
 	slre_ptri i;
 	slre_uint r;
 	const slre_ptri regex_sz = strlen( regex );
 
-	if(groups_sz >= 1)
+	/* this is a preliminary sweep to nope out of more obviously
+	 * broken expressions before expensive parsing commences */
+	for(i = 0; i < regex_sz; ++i)
 	{
-		groups[0].open = 0;
-		groups[0].close = string_sz;
-		groups[0].branch_ct = 0;
-		groups[0].branches = (void *)0;
-	}
-
-	for(i = 0; i < regex_sz; i += step)
-	{
-		step = _get_op_len( regex, i, regex_sz );
-
 		switch(regex[i])
 		{
 		case '|':
@@ -237,16 +199,18 @@ static enum slre_err _slre_match(
 			break;
 		case '\\':
 			CHK( i + 1 < regex_sz, SLRE_ERR_BADMETACHAR );
-			r = _chk_regex_hex( regex, i, regex_sz );
+			r = _chk_regex_octal( &regex[i + 1], i + 1,
+				regex_sz );
 			CHK( r == 0, SLRE_ERR_BADMETACHAR );
 			r = _chk_regex_meta( regex[i + 1] );
 			CHK( r == 0, SLRE_ERR_BADMETACHAR );
+			/* extra chars to advance */
+			i += regex[i + 1] == 'x' ? 3 : 1;
 			break;
 		case '(':
 			CHK( opgroup_sz + 1 < SLRE_GROUPS_MAX,
 				SLRE_ERR_TOOMANYGROUPS );
 			CHK( i + 1 < regex_sz, SLRE_ERR_BADPARENS );
-			opgroup_idxs[opgroup_sz] = i;
 			opgroup_sz += 1;
 			break;
 		case ')':
@@ -260,19 +224,7 @@ static enum slre_err _slre_match(
 
 	CHK( opgroup_sz == clgroup_sz, SLRE_ERR_BADPARENS );
 
-	{
-		struct slre_group groups[SLRE_GROUPS_MAX];
-		slre_ptri groups_ct = 0;
-
-		i = 0;
-
-		do
-		{
-			r = _formgroup( regex, opgroup_idxs, opgroup_sz,
-				i, &groups, &groups_sz );
-		}
-		while(r != 0);
-	}
+	r = _formgroups( regex, regex_sz, &groups, opgroup_sz );
 
 	return SLRE_ERR_SUCCESS;
 }
