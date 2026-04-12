@@ -98,8 +98,8 @@ A brief list of rules observed by these INIs (consult [the
 schema](https://gist.github.com/nicholatian/05cae747b0d3a8928c85c12d65187ff3)
 for a precise specification):
 
-1. all key–value pairs must appear under a section heading (there is no
-&ldquo;global section&rdquo;)
+1. all key&ndash;value pairs must appear under a section heading (there
+is no &ldquo;global section&rdquo;)
 2. only ASCII is permitted, except within comments, where the high bit
 may be set to passively allow UTF-8
 3. all URIs must be valid UTF-8 and legalised into ASCII via
