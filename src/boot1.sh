@@ -3,7 +3,7 @@
 ## EARTHBOUND bootstrapper
 ##
 ## Written by Alexander Nicholi <//nich.fi/>
-## Copyright (C) 2025 Aquefir Consulting LLC <//aquefir.co/>
+## Copyright (C) 2025-2026 Aquefir Consulting LLC <//aquefir.co/>
 ## Released under the General Public License version 2.0
 ## <https://www.gnu.org/licenses/gpl-2.0.html>
 
@@ -20,18 +20,23 @@ rm=rm;
 command -v grm 2>&1 >/dev/null && rm=grm;
 
 if test "$CC" = '' && ! command -v cc 2>&1 >/dev/null; then
-	$echo "An ANSI C compiler under the name 'cc' is required to be";
-	$echo 'available in the $PATH to bootstrap Earthbound.';
-	$echo 'Alternatively, one may be provided under the environment';
-	$echo 'variable $CC.';
+	${echo} \
+"An ANSI C compiler under the name 'cc' is required to be available in";
+	${echo} \
+'the $PATH to bootstrap Earthbound. Alternatively, one may be provided';
+	${echo} \
+'under the environment variable $CC.';
 	exit 2;
 fi
 
 if ! command -v shasum 2>&1 >/dev/null && ! command -v sha256sum 2>&1 \
 >/dev/null && test "$SKIP_CHECKSUM" = ''; then
-	$echo 'For security, Earthbound bootstrapping requires a SHA-2';
-	$echo 'checksumming utility, either shasum or sha256sum, to ensure';
-	$echo 'the source code has not been tampered with.';
+	${echo} \
+'For security, Earthbound bootstrapping requires a SHA-2 checksumming';
+	${echo} \
+'utility, either shasum or sha256sum, to ensure the source code has';
+	${echo} 'not been tampered with.';
+	${echo} 'Bailing out for safety...';
 	exit 3;
 fi
 
@@ -48,7 +53,8 @@ if command -v curl 2>&1 >/dev/null; then
 elif command -v wget 2>&1 >/dev/null; then
 	cmd='wget -qO- -UwUget';
 else
-	${echo} 'Either curl or wget is required to bootstrap Earthbound.';
+	${echo} \
+'Either curl or wget is required to bootstrap Earthbound.';
 	exit 1;
 fi
 
@@ -56,12 +62,13 @@ test -f earthbound.c && $rm earthbound.c;
 $cmd tohoku.ac/earthbound-$ver.c > earthbound.c;
 if test "$SKIP_CHECKSUM" != '' || test "$sha256" != ''; then
 	test "$($sha256 -b --quiet earthbound.c)" != "$sum" && {
-		$echo 'WARNING!';
-		$echo 'The SHA2-256 digest for earthbound.c did not match!';
-		$echo 'Bailing out for safety...';
-		$rm earthbound.c;
+		${echo} 'WARNING!';
+		${echo} \
+'The SHA2-256 digest for earthbound.c did not match!';
+		${echo} 'Bailing out for safety...';
+		${rm} earthbound.c;
 		exit 4;
 	};
 fi
 $CC $CFLAGS -oeb.bin earthbound.c;
-$echo 'Earthbound bootstrapped to "./eb.bin".';
+${echo} 'Earthbound bootstrapped to "./eb.bin".';
