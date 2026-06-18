@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* BEGIN SHA-3 IMPLEMENTATION */
@@ -1298,3 +1299,78 @@ int slre_match( const char * regexp,
 /* END SLRE IMPLEMENTATION */
 
 /* BEGIN EARTHBOUND */
+
+static char ** getpath( void )
+{
+	char * const path = getenv( "PATH" );
+	char * retpath;
+	char ** ret;
+	size_t path_sz, paths_ct, pathstr_offs, i, n;
+
+	if(path == NULL)
+	{
+		fprintf( stderr, "No $PATH found. Exiting...\n" );
+
+		abort( );
+	}
+
+	path_sz = strlen( (const char *)path );
+	paths_ct = 1;
+
+	for(i = 0; i < path_sz; ++i)
+	{
+		if(path[i] == ':')
+		{
+			paths_ct += 1;
+		}
+	}
+
+	pathstr_offs = sizeof(char *) * (paths_ct + 1);
+	ret = calloc( 1, pathstr_offs + path_sz );
+
+	if(ret == NULL)
+	{
+		fprintf( stderr, "out of memory\n" );
+
+		abort( );
+	}
+
+	retpath = &(((char *)ret)[pathstr_offs]);
+
+	memcpy( retpath, path, path_sz );
+
+	ret[0] = retpath;
+
+	for(i = 1, n = 1; i < path_sz; ++i)
+	{
+		if(retpath[i] == ':')
+		{
+			retpath[i] = '\0';
+
+			if(i + 1 >= path_sz)
+			{
+				break;
+			}
+
+			ret[n] = &(retpath[i + 1]);
+
+			n += 1;
+		}
+	}
+
+	return ret;
+}
+
+int main( int ac, char * av[] )
+{
+	char ** path = getpath( );
+
+	while(*path != NULL)
+	{
+		fprintf( stdout, "%s\n", *path );
+
+		path++;
+	}
+
+	return 0;
+}
