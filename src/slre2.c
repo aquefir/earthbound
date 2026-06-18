@@ -13,6 +13,7 @@
 #define CHKC(_x) do{if((_x)){}else{continue;}}while(0)
 
 typedef unsigned slre_bool;
+typedef __INT16_TYPE__ slre_sint;
 typedef __UINT16_TYPE__ slre_uint;
 typedef unsigned slre_ubf;
 typedef __INTPTR_TYPE__ slre_offs;
@@ -36,12 +37,12 @@ enum slre_err
 
 enum
 {
-	SLRE_GROUPS_MAX = 8191
+	SLRE_GROUPS_MAX = 8192
 };
 
 enum
 {
-	SLRE_BRANCHES_MAX = 8191
+	SLRE_BRANCHES_MAX = 256
 };
 
 /* Possible flags for slre_match() */
@@ -82,14 +83,11 @@ struct slre_group
 	/* element count of `.branches` */
 	slre_uint branch_ct;
 	/* array of offsets from `.open` pointing to `'|'` metachars */
-	slre_uint * branches;
+	slre_uint branches[SLRE_BRANCHES_MAX];
 	/* number of child groups */
-	slre_ptri children_sz;
-	/* ordered list of child groups */
-	struct slre_group * children;
 };
 
-static slre_bool _chk_regex_octal( const char c[3], slre_ptri idx,
+static slre_sint _chk_regex_octal( const char c[3], slre_ptri idx,
 slre_ptri sz)
 {
 	slre_ptri i;
@@ -97,7 +95,8 @@ slre_ptri sz)
 	if(idx + 2 >= sz
 	|| c[0] != '0' && c[0] != '1' && c[0] != '2' && c[0] != '3')
 	{
-		/* might still fail but it's not our business */
+		/* did not find an octal escape, must be something else
+		 */
 		return 0;
 	}
 
@@ -105,11 +104,13 @@ slre_ptri sz)
 	{
 		if(c[i] < '0' || c[i] > '7')
 		{
-			return 1;
+			/* found invalid octal escape */
+			return -1;
 		}
 	}
 
-	return 0;
+	/* found valid octal escape */
+	return 1;
 }
 
 static slre_bool _chk_regex_meta( char c )
@@ -149,25 +150,6 @@ static slre_bool _chk_regex_meta( char c )
 	}
 }
 
-static slre_bool _formgroups(
-	const char * regex,
-	slre_ptri regex_sz,
-	struct slre_group (* groups)[SLRE_GROUPS_MAX],
-	slre_ptri groups_sz
-)
-{
-	slre_ptri i;
-	slre_uint wip_sizes[SLRE_GROUPS_MAX];
-
-	memset( &wip_sizes, 0, SLRE_GROUPS_MAX );
-
-	for(i = 0; i < regex_sz; ++i)
-	{
-	}
-
-	return 0;
-}
-
 static enum slre_err _slre_match(
 	const char * regex,
 	const char * string,
@@ -175,15 +157,22 @@ static enum slre_err _slre_match(
 	enum slre_flags flags
 )
 {
-	slre_uint branch_idxs[SLRE_BRANCHES_MAX];
 	struct slre_group groups[SLRE_GROUPS_MAX];
-	slre_ptri groups_sz = 0;
-	slre_uint branch_sz = 0;
+	slre_uint wip_groupidxs[SLRE_GROUPS_MAX];
+	slre_ptri groups_sz = 1;
+	slre_ptri i;
+	slre_uint tmp = 0;
 	slre_uint opgroup_sz = 0;
 	slre_uint clgroup_sz = 0;
-	slre_ptri i;
-	slre_uint r;
+	slre_uint depth = 1;
+	slre_uint r, r2;
 	const slre_ptri regex_sz = strlen( regex );
+
+	memset( &groups, 0, SLRE_GROUPS_MAX );
+	memset( &wip_groupidxs, 0, SLRE_GROUPS_MAX );
+
+	groups[0].open = 0;
+	groups[0].len = regex_sz;
 
 	/* this is a preliminary sweep to nope out of more obviously
 	 * broken expressions before expensive parsing commences */
@@ -192,30 +181,39 @@ static enum slre_err _slre_match(
 		switch(regex[i])
 		{
 		case '|':
-			CHK( branch_sz + 1 < SLRE_BRANCHES_MAX,
+			tmp = wip_groupidxs[depth - 1];
+			CHK( groups[tmp].branch_ct < SLRE_BRANCHES_MAX,
 				SLRE_ERR_TOOMANYBRANCHES );
-			branch_idxs[branch_sz] = i;
-			branch_sz += 1;
+			groups[tmp].branches[groups[tmp].branch_ct] =
+				i - groups[tmp].open;
+			groups[tmp].branch_ct += 1;
 			break;
 		case '\\':
 			CHK( i + 1 < regex_sz, SLRE_ERR_BADMETACHAR );
 			r = _chk_regex_octal( &regex[i + 1], i + 1,
 				regex_sz );
-			CHK( r == 0, SLRE_ERR_BADMETACHAR );
-			r = _chk_regex_meta( regex[i + 1] );
-			CHK( r == 0, SLRE_ERR_BADMETACHAR );
+			CHK( r >= 0, SLRE_ERR_BADMETACHAR );
+			r2 = _chk_regex_meta( regex[i + 1] );
+			CHK( r2 == 0, SLRE_ERR_BADMETACHAR );
 			/* extra chars to advance */
-			i += regex[i + 1] == 'x' ? 3 : 1;
+			i += r > 0 ? 3 : 1;
 			break;
 		case '(':
 			CHK( opgroup_sz + 1 < SLRE_GROUPS_MAX,
 				SLRE_ERR_TOOMANYGROUPS );
 			CHK( i + 1 < regex_sz, SLRE_ERR_BADPARENS );
+			groups[opgroup_sz].open = i;
+			wip_groupidxs[depth] = opgroup_sz;
+			depth += 1;
 			opgroup_sz += 1;
 			break;
 		case ')':
 			CHK( clgroup_sz + 1 < SLRE_GROUPS_MAX,
 				SLRE_ERR_TOOMANYGROUPS );
+			CHK( depth > 1, SLRE_ERR_BADPARENS );
+			groups[wip_groupidxs[depth - 1]].len = i -
+				groups[wip_groupidxs[depth - 1]].open;
+			depth -= 1;
 			clgroup_sz += 1;
 		default:
 			break;
@@ -223,8 +221,6 @@ static enum slre_err _slre_match(
 	}
 
 	CHK( opgroup_sz == clgroup_sz, SLRE_ERR_BADPARENS );
-
-	r = _formgroups( regex, regex_sz, &groups, opgroup_sz );
 
 	return SLRE_ERR_SUCCESS;
 }
