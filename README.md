@@ -138,10 +138,10 @@ with:
 
 | Utility | Default    | Override    |
 |:-------:|:----------:|:-----------:|
-| 7zip    | `p7zip`    | `$EB_7ZIP`  |
+| 7zip    | `7z`       | `$EB_7Z`    |
 | GNU tar | `tar`[^1]  | `$EB_TAR`   |
 | Unzip   | `unzip`    | `$EB_UNZIP` |
-| Gzip    | `gz`       | `$EB_GZ`    |
+| Gzip    | `gzip`     | `$EB_GZIP`  |
 | Bzip2   | `bzip2`    | `$EB_BZIP2` |
 | Lzip    | `lzip`[^2] | `$EB_LZIP`  |
 | Lrzip   | `lrzip`    | `$EB_LRZIP` |
